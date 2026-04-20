@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secondary-scheduler
+  namespace: __NAMESPACE__
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: secondary-scheduler
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/binding"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: secondary-scheduler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: secondary-scheduler
+subjects:
+  - kind: ServiceAccount
+    name: secondary-scheduler
+    namespace: __NAMESPACE__
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secondary-scheduler
+  namespace: __NAMESPACE__
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: secondary-scheduler
+  template:
+    metadata:
+      labels:
+        app: secondary-scheduler
+    spec:
+      serviceAccountName: secondary-scheduler
+      containers:
+        - name: scheduler
+          image: __IMAGE__
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SCHEDULER_NAME
+              value: secondary-scheduler
