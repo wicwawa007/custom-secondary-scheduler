@@ -3,11 +3,17 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 POD_GROUP_ANNOTATION = "scheduler.example.com/pod-group"
+PRIORITY_ANNOTATION = "scheduler.example.com/priority"
+
 
 
 def pod_priority(pod) -> int:
-    if getattr(pod.spec, "priority", None) is not None:
-        return int(pod.spec.priority)
+    annotations = pod.metadata.annotations or {}
+    if PRIORITY_ANNOTATION in annotations:
+        try:
+            return int(annotations[PRIORITY_ANNOTATION])
+        except ValueError:
+            pass
     return 0
 
 
@@ -106,10 +112,10 @@ class Scheduler:
         free_nodes = state["free_nodes"]
 
         if len(free_nodes) < need:
-            preempted_nodes = self._choose_preempted_nodes(state, batch)
-            for preempted_node in preempted_nodes:
-                self.k8s.delete_pod(preempted_node.metadata.namespace, preempted_node.metadata.name)
-                node_name = preempted_node.spec.node_name
+            preempted_pods = self._choose_preempted_pods(state, batch)
+            for preempted_pod in preempted_pods:
+                self.k8s.delete_pod(preempted_pod.metadata.namespace, preempted_pod.metadata.name)
+                node_name = preempted_pod.spec.node_name
                 if node_name in state["occupants"]:
                     del state["occupants"][node_name]
                     free_nodes.append(node_name)
@@ -126,23 +132,23 @@ class Scheduler:
 
         state["free_nodes"] = free_nodes[need:]
 
-    def _choose_preempted_nodes(self, state: dict, batch: PodBatch):
+    def _choose_preempted_pods(self, state: dict, batch: PodBatch):
         shortage = len(batch.pods) - len(state["free_nodes"])
         if shortage <= 0:
             return []
 
         incoming_priority = batch.priority()
-        preempted_nodes = [
+        preempted_pods = [
             pod
             for pod in state["occupants"].values()
             if pod_priority(pod) < incoming_priority
         ]
-        preempted_nodes.sort(key=lambda p: (pod_priority(p), p.metadata.name))
+        preempted_pods.sort(key=lambda p: (pod_priority(p), p.metadata.name))
 
-        if len(preempted_nodes) < shortage:
+        if len(preempted_pods) < shortage:
             raise RuntimeError("not enough lower-priority nodes")
 
-        return preempted_nodes[:shortage]
+        return preempted_pods[:shortage]
 
     def _ready_to_retry(self, batch: PodBatch) -> bool:
         next_time = self.retry_next_time.get(batch.key())

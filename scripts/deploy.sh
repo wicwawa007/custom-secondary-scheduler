@@ -1,12 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 2 ]]; then
-  echo "usage: $0 <namespace> <image>"
-  echo "example: $0 scheduler-system ghcr.io/you/secondary-scheduler:latest"
-  exit 1
-fi
-
 NS="$1"
 IMAGE="$2"
 

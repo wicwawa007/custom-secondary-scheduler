@@ -4,9 +4,9 @@ metadata:
   name: gang-a
   annotations:
     scheduler.example.com/pod-group: gang-1
+    scheduler.example.com/priority: "80"
 spec:
   schedulerName: secondary-scheduler
-  priority: 80
   containers:
     - name: pause
       image: registry.k8s.io/pause:3.9
@@ -17,9 +17,9 @@ metadata:
   name: gang-b
   annotations:
     scheduler.example.com/pod-group: gang-1
+    scheduler.example.com/priority: "80"
 spec:
   schedulerName: secondary-scheduler
-  priority: 80
   containers:
     - name: pause
       image: registry.k8s.io/pause:3.9
